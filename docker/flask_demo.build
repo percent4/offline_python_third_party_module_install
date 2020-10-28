@@ -1,0 +1,41 @@
+FROM centos:7.2.1511
+
+# install related packages
+ENV ENVIRONMENT DOCKER_PROD
+RUN cd / && ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
+    && yum makecache \
+    && yum install -y wget aclocal supervisor automake autoconf make gcc gcc-c++ python-devel mysql-devel bzip2 libffi-devel epel-release \
+    && yum clean all
+
+# install Python3.5.2
+COPY python_dev/Python-3.5.2.tar.xz /root
+RUN cd /root \
+    && tar -xvf Python-3.5.2.tar.xz -C /usr/local/ \
+    && rm -rf Python-3.5.2.tar.xz \
+    && cd /usr/local/Python-3.5.2 \
+    && ./configure && make && make install
+
+# set ENV variable WORK_DIR and copy source code
+ENV WORK_DIR /root/flask_demo/src
+COPY src $WORK_DIR
+
+# install pip3 and related Python packages
+COPY python_dev/pip-8.0.2.tar.gz /root/pip-8.0.2.tar.gz
+RUN cd /root \
+    && tar -zxvf pip-8.0.2.tar.gz \
+    && cd pip-8.0.2 \
+    && python3 setup.py build \
+    && python3 setup.py install \
+    && pip3 install --upgrade pip -i http://pypi.douban.com/simple/ --trusted-host pypi.douban.com \
+    && mkdir -m 755 -p /etc/supervisor/conf.d \
+    && pip3 install supervisor -i http://pypi.douban.com/simple/ --trusted-host pypi.douban.com \
+    && cd $WORK_DIR \
+    && pip3 install -r requirements.txt -i http://pypi.douban.com/simple/ --trusted-host pypi.douban.com \
+    && yum clean all
+
+
+# WORK_DIR
+WORKDIR $WORK_DIR
+
+# use supervisor to run Python script
+CMD ["pytho3", "run.py"]
